@@ -1,0 +1,7 @@
+{
+  "name": "TabiTabi 工作台",
+  "short_name": "工作台",
+  "display": "standalone",
+  "theme_color": "#0e0e0e",
+  "background_color": "#0e0e0e"
+}
