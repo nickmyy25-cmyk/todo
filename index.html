@@ -6,13 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>桌面生产力工作台</title>
   
-  <!-- 引入 Tailwind CSS (用于原汁原味的样式渲染) -->
+  <!-- 引入 Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- 引入 Babel (用于让浏览器实时读懂你下面写的原生 React 代码) -->
+  <!-- 引入 Babel -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   
-  <!-- 核心修复：使用 ImportMap 引入真正的官方 React 和原版图标库，不改任何 UI -->
+  <!-- 引入 ImportMap -->
   <script type="importmap">
     {
       "imports": {
@@ -27,12 +27,7 @@
   
   <div id="root"></div>
 
-  <!-- 注意：这里的 type="text/babel" 和 data-type="module" 是代码完美运行的关键 -->
   <script type="text/babel" data-type="module">
-    // ==============================================================
-    // 以下区域是你的原版核心业务代码，绝对没有做过任何删改和妥协！
-    // ==============================================================
-
     import React, { useState, useEffect } from 'react';
     import { createRoot } from 'react-dom/client';
     import { 
@@ -82,10 +77,11 @@
       const [expandedTodoId, setExpandedTodoId] = useState(null);
       const [focusedNoteId, setFocusedNoteId] = useState(null);
       const [draggedNoteId, setDraggedNoteId] = useState(null);
+      const [draggableNoteId, setDraggableNoteId] = useState(null); // 控制哪个便签可以被拖拽
       
       // 面板响应与拖拽状态
       const [leftWidth, setLeftWidth] = useState(460);
-      const [mobileTab, setMobileTab] = useState('todo');
+      const [mobileTab, setMobileTab] = useState('todo'); // 'todo' | 'notes' | 'timer'
 
       // --- 番茄钟状态管理 ---
       const [focusTime, setFocusTime] = useState(DEFAULT_FOCUS_TIME);
@@ -183,6 +179,11 @@
       const deleteTodo = (id) => { setTodos(todos.filter(t => t.id !== id)); if (activeTaskId === id) setActiveTaskId(null); };
       const updateTodoDesc = (id, desc) => setTodos(todos.map(t => t.id === id ? { ...t, description: desc } : t));
       const updateTodoPriority = (id, priority) => setTodos(todos.map(t => t.id === id ? { ...t, priority } : t));
+      
+      // 新增：直接修改任务标题
+      const updateTodoText = (id, newText) => {
+        setTodos(todos.map(t => t.id === id ? { ...t, text: newText } : t));
+      };
 
       const getTagDetails = (tagId) => TAGS.find(t => t.id === tagId) || TAGS[0];
 
@@ -279,17 +280,18 @@
           let content = line
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/`(.*?)`/g, '<code class="bg-black/10 px-1.5 py-0.5 rounded text-[13px] font-mono">$1</code>');
+            .replace(/`(.*?)`/g, '<code class="bg-black/10 px-1.5 py-0.5 rounded text-[12px] font-mono">$1</code>');
 
-          if (line.startsWith('# ')) return <h1 key={idx} className="text-xl font-bold mb-3 border-b border-black/10 pb-1" dangerouslySetInnerHTML={{__html: content.slice(2)}} />;
-          if (line.startsWith('## ')) return <h2 key={idx} className="text-lg font-bold mb-2 mt-3" dangerouslySetInnerHTML={{__html: content.slice(3)}} />;
+          // 字号整体缩放：使用 em 相对字号
+          if (line.startsWith('# ')) return <h1 key={idx} className="text-[1.25em] font-bold mb-2 border-b border-black/10 pb-1" dangerouslySetInnerHTML={{__html: content.slice(2)}} />;
+          if (line.startsWith('## ')) return <h2 key={idx} className="text-[1.1em] font-bold mb-1 mt-2" dangerouslySetInnerHTML={{__html: content.slice(3)}} />;
           if (line.startsWith('- ')) return <li key={idx} className="ml-5 list-disc mb-1" dangerouslySetInnerHTML={{__html: content.slice(2)}} />;
-          if (line.startsWith('> ')) return <blockquote key={idx} className="border-l-4 border-black/20 pl-3 py-1 my-2 bg-black/5 italic rounded-r text-sm text-black/70" dangerouslySetInnerHTML={{__html: content.slice(2)}} />;
+          if (line.startsWith('> ')) return <blockquote key={idx} className="border-l-4 border-black/20 pl-3 py-1 my-2 bg-black/5 italic rounded-r text-[0.9em] text-black/70" dangerouslySetInnerHTML={{__html: content.slice(2)}} />;
           
           if (line.startsWith('[ ] ')) {
             return (
               <label key={idx} className="flex items-start gap-2 mb-1.5 cursor-pointer group hover:bg-black/5 p-1 -mx-1 rounded transition-colors">
-                <input type="checkbox" checked={false} onChange={() => toggleMdCheckbox(note.id, idx)} className="mt-1 w-4 h-4 rounded border-black/30 text-neutral-800 focus:ring-neutral-800 cursor-pointer accent-neutral-700" />
+                <input type="checkbox" checked={false} onChange={() => toggleMdCheckbox(note.id, idx)} className="mt-1 w-3.5 h-3.5 rounded border-black/30 text-neutral-800 focus:ring-neutral-800 cursor-pointer accent-neutral-700" />
                 <span dangerouslySetInnerHTML={{__html: content.slice(4)}} className="select-none" />
               </label>
             );
@@ -297,14 +299,14 @@
           if (line.startsWith('[x] ') || line.startsWith('[X] ')) {
             return (
               <label key={idx} className="flex items-start gap-2 mb-1.5 cursor-pointer group hover:bg-black/5 p-1 -mx-1 rounded transition-colors opacity-60">
-                <input type="checkbox" checked={true} onChange={() => toggleMdCheckbox(note.id, idx)} className="mt-1 w-4 h-4 rounded border-black/30 text-neutral-800 focus:ring-neutral-800 cursor-pointer accent-neutral-700" />
+                <input type="checkbox" checked={true} onChange={() => toggleMdCheckbox(note.id, idx)} className="mt-1 w-3.5 h-3.5 rounded border-black/30 text-neutral-800 focus:ring-neutral-800 cursor-pointer accent-neutral-700" />
                 <span dangerouslySetInnerHTML={{__html: content.slice(4)}} className="line-through select-none" />
               </label>
             );
           }
 
-          if (line.trim() === '') return <div key={idx} className="h-3" />;
-          return <p key={idx} className="mb-1.5 min-h-[1.5rem]" dangerouslySetInnerHTML={{__html: content}} />;
+          if (line.trim() === '') return <div key={idx} className="h-2" />;
+          return <p key={idx} className="mb-1 min-h-[1.25rem]" dangerouslySetInnerHTML={{__html: content}} />;
         });
       };
 
@@ -326,56 +328,58 @@
       return (
         <div className="min-h-screen bg-[#0e0e0e] flex font-sans text-neutral-100 overflow-hidden relative" style={{ '--left-width': `${leftWidth}px` }}>
           
-          <div className={`panel-responsive flex-col bg-[#161618] border-r border-white/5 shrink-0 h-screen z-20 shadow-2xl relative ${mobileTab === 'todo' ? 'flex' : 'hidden md:flex'}`}>
-            <div className="p-6 pb-4 border-b border-white/5 bg-[#161618]/80 backdrop-blur-xl sticky top-0 z-10">
-              <div className="flex items-center justify-between mb-6">
+          {/* 左侧面板：移动端根据 Tab 拆分显隐 */}
+          <div className={`panel-responsive flex-col bg-[#161618] border-r border-white/5 shrink-0 h-screen z-20 shadow-2xl relative ${(mobileTab === 'todo' || mobileTab === 'timer') ? 'flex' : 'hidden md:flex'}`}>
+            <div className={`p-6 pb-4 border-b border-white/5 bg-[#161618]/80 backdrop-blur-xl sticky top-0 z-10 ${mobileTab === 'timer' ? 'flex-none' : ''}`}>
+              <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 flex items-center justify-center bg-gradient-to-tr from-indigo-600 to-purple-500 rounded-xl shadow-lg shadow-indigo-500/20">
-                    <CheckCircle2 size={18} className="text-white" />
+                  <div className="w-7 h-7 flex items-center justify-center bg-gradient-to-tr from-indigo-600 to-purple-500 rounded-xl shadow-lg shadow-indigo-500/20">
+                    <CheckCircle2 size={16} className="text-white" />
                   </div>
-                  <h1 className="text-xl font-bold tracking-tight text-white/90">今天</h1>
+                  <h1 className="text-lg font-bold tracking-tight text-white/90">今天</h1>
                 </div>
                 
                 <div className="relative">
-                  <button onClick={() => setShowSettings(!showSettings)} className="p-2 text-neutral-400 hover:text-white hover:bg-white/10 rounded-xl transition-all">
-                    <Settings size={18} />
+                  <button onClick={() => setShowSettings(!showSettings)} className="p-1.5 text-neutral-400 hover:text-white hover:bg-white/10 rounded-xl transition-all">
+                    <Settings size={16} />
                   </button>
                   {showSettings && (
-                    <div className="absolute right-0 mt-2 w-48 bg-[#222225] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200">
-                      <button onClick={exportData} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-200 hover:bg-white/5 transition-colors">
-                        <Download size={16} /> 导出本地备份
+                    <div className="absolute right-0 mt-2 w-44 bg-[#222225] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200 z-50">
+                      <button onClick={exportData} className="w-full flex items-center gap-3 px-3 py-2 text-[13px] text-neutral-200 hover:bg-white/5 transition-colors">
+                        <Download size={14} /> 导出本地备份
                       </button>
                       <div className="h-px bg-white/5 my-1"></div>
-                      <button onClick={clearAllData} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors">
-                        <AlertTriangle size={16} /> 重置所有数据
+                      <button onClick={clearAllData} className="w-full flex items-center gap-3 px-3 py-2 text-[13px] text-red-400 hover:bg-red-500/10 transition-colors">
+                        <AlertTriangle size={14} /> 重置所有数据
                       </button>
                     </div>
                   )}
                 </div>
               </div>
 
+              {/* 番茄钟模块：在 Todo tab 下隐藏（移动端），在 Timer tab 下显示 */}
               <div className={`p-4 rounded-2xl border transition-all duration-500 relative overflow-hidden ${
                 timerMode === 'focus' 
                   ? isTimerRunning ? 'bg-indigo-500/10 border-indigo-500/20 shadow-inner' : 'bg-[#222225] border-white/5'
                   : 'bg-emerald-500/10 border-emerald-500/20'
-              }`}>
+              } ${mobileTab === 'todo' ? 'hidden md:block' : 'block'}`}>
                 {isTimerRunning && (
                   <div className={`absolute bottom-0 left-0 h-0.5 transition-all duration-1000 ease-linear ${timerMode === 'focus' ? 'bg-indigo-500' : 'bg-emerald-500'}`}
                        style={{ width: `${(( (timerMode === 'focus' ? focusTime : breakTime) - timeLeft) / (timerMode === 'focus' ? focusTime : breakTime)) * 100}%` }}></div>
                 )}
                 <div className="flex justify-between items-center mb-2">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <div className="flex gap-1 bg-black/20 p-1 rounded-lg border border-white/5">
-                      <button onClick={() => switchTimerMode('focus')} className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${timerMode === 'focus' ? 'bg-white/10 text-white shadow-sm' : 'text-neutral-500 hover:text-white'}`}>专注</button>
-                      <button onClick={() => switchTimerMode('break')} className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${timerMode === 'break' ? 'bg-white/10 text-white shadow-sm' : 'text-neutral-500 hover:text-white'}`}>休息</button>
+                      <button onClick={() => switchTimerMode('focus')} className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${timerMode === 'focus' ? 'bg-white/10 text-white shadow-sm' : 'text-neutral-500 hover:text-white'}`}>专注</button>
+                      <button onClick={() => switchTimerMode('break')} className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${timerMode === 'break' ? 'bg-white/10 text-white shadow-sm' : 'text-neutral-500 hover:text-white'}`}>休息</button>
                     </div>
                     
-                    <div className="flex gap-1 opacity-80">
+                    <div className="flex gap-0.5 opacity-80">
                       {(timerMode === 'focus' ? [15, 25, 45, 60] : [5, 10, 15, 30]).map(mins => (
                         <button
                           key={mins}
                           onClick={() => handleSetDuration(mins)}
-                          className={`px-1.5 py-0.5 text-[11px] rounded transition-colors ${
+                          className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${
                             (timerMode === 'focus' ? focusTime : breakTime) === mins * 60
                               ? (timerMode === 'focus' ? 'bg-indigo-500/40 text-white' : 'bg-emerald-500/40 text-white')
                               : 'text-neutral-400 hover:bg-white/10 hover:text-neutral-200'
@@ -387,8 +391,8 @@
                     </div>
                   </div>
 
-                  <span className={`text-xs font-medium flex items-center gap-1.5 ${timerMode === 'focus' ? 'text-indigo-400' : 'text-emerald-400'}`}>
-                    {timerMode === 'focus' ? <BrainCircuit size={14}/> : <Coffee size={14}/>}
+                  <span className={`text-[10px] font-medium flex items-center gap-1 ${timerMode === 'focus' ? 'text-indigo-400' : 'text-emerald-400'}`}>
+                    {timerMode === 'focus' ? <BrainCircuit size={12}/> : <Coffee size={12}/>}
                   </span>
                 </div>
                 
@@ -402,30 +406,30 @@
                       onChange={(e) => setEditTimeValue(e.target.value)}
                       onBlur={saveCustomTime}
                       onKeyDown={(e) => e.key === 'Enter' && saveCustomTime()}
-                      className="bg-black/30 border border-white/10 rounded-lg px-2 py-1 text-[2.2rem] font-light font-mono tracking-tight tabular-nums text-white/90 leading-none w-32 focus:outline-none focus:border-indigo-500/50"
+                      className="bg-black/30 border border-white/10 rounded-lg px-2 py-1 text-[2rem] font-light font-mono tracking-tight tabular-nums text-white/90 leading-none w-28 focus:outline-none focus:border-indigo-500/50"
                       title="按回车键保存"
                     />
                   ) : (
                     <div 
                       onClick={() => { setIsEditingTime(true); setEditTimeValue(String(Math.floor(timeLeft / 60))); }}
-                      className="text-[2.5rem] font-light font-mono tracking-tight tabular-nums text-white/90 leading-none cursor-pointer hover:opacity-70 transition-opacity"
+                      className="text-[2.2rem] font-light font-mono tracking-tight tabular-nums text-white/90 leading-none cursor-pointer hover:opacity-70 transition-opacity"
                       title="点击手动修改时间"
                     >
                       {formatTime(timeLeft)}
                     </div>
                   )}
                   <div className="flex gap-2">
-                    <button onClick={toggleTimer} className={`w-10 h-10 flex items-center justify-center rounded-full text-white transition-all active:scale-90 ${timerMode === 'focus' ? 'bg-indigo-500 hover:bg-indigo-600 shadow-lg shadow-indigo-500/30' : 'bg-emerald-500 hover:bg-emerald-600 shadow-lg shadow-emerald-500/30'}`}>
-                      {isTimerRunning ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
+                    <button onClick={toggleTimer} className={`w-9 h-9 flex items-center justify-center rounded-full text-white transition-all active:scale-90 ${timerMode === 'focus' ? 'bg-indigo-500 hover:bg-indigo-600 shadow-md shadow-indigo-500/30' : 'bg-emerald-500 hover:bg-emerald-600 shadow-md shadow-emerald-500/30'}`}>
+                      {isTimerRunning ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
                     </button>
-                    <button onClick={resetTimer} className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-full text-neutral-400 transition-colors">
-                      <RotateCcw size={16} />
+                    <button onClick={resetTimer} className="w-9 h-9 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-full text-neutral-400 transition-colors">
+                      <RotateCcw size={14} />
                     </button>
                   </div>
                 </div>
 
                 {activeTaskId && activeTaskText && timerMode === 'focus' && (
-                  <div className="mt-4 pt-3 border-t border-white/5 text-[13px] text-indigo-300/80 flex items-center gap-2">
+                  <div className="mt-3 pt-2.5 border-t border-white/5 text-[12px] text-indigo-300/80 flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
                     <span className="truncate">当前攻克: {activeTaskText}</span>
                   </div>
@@ -433,11 +437,12 @@
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar pb-24 md:pb-4">
+            {/* 待办列表主体：在 Timer tab 下隐藏（移动端） */}
+            <div className={`flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar pb-[70px] md:pb-4 ${mobileTab === 'timer' ? 'hidden md:block' : 'block'}`}>
               {todos.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-neutral-600">
-                  <ListTodo size={48} strokeWidth={1} className="mb-4 opacity-20" />
-                  <p className="text-sm font-medium">任务已清空，做得好！</p>
+                  <ListTodo size={40} strokeWidth={1} className="mb-3 opacity-20" />
+                  <p className="text-[13px] font-medium">任务已清空，做得好！</p>
                 </div>
               ) : (
                 todos.map(todo => {
@@ -459,62 +464,67 @@
                               : 'bg-transparent hover:bg-[#222225]'
                       }`}
                     >
-                      <div className="flex items-start gap-3 p-3">
+                      <div className="flex items-start gap-2.5 p-3">
                         <button 
                           onClick={() => toggleTodo(todo.id)}
                           className={`mt-0.5 shrink-0 transition-colors ${todo.completed ? 'text-emerald-500' : 'text-neutral-500 hover:text-indigo-400'}`}
                         >
-                          {todo.completed ? <CheckCircle2 size={20} className="fill-emerald-500/20" /> : <Circle size={20} />}
+                          {todo.completed ? <CheckCircle2 size={18} className="fill-emerald-500/20" /> : <Circle size={18} />}
                         </button>
                         
-                        <div className="flex-1 min-w-0 pt-0.5 cursor-pointer" onClick={() => setExpandedTodoId(isExpanded ? null : todo.id)}>
-                          <div className="flex items-center gap-2">
+                        <div className="flex-1 min-w-0 flex flex-col cursor-pointer" onClick={() => setExpandedTodoId(isExpanded ? null : todo.id)}>
+                          <div className="flex items-center gap-1.5 flex-1 w-full pt-px">
                             {priority.id !== 'none' && !todo.completed && (
-                              <Flag size={14} className={`shrink-0 ${priority.iconColor}`} fill="currentColor" />
+                              <Flag size={12} className={`shrink-0 ${priority.iconColor}`} fill="currentColor" />
                             )}
-                            <span className={`block truncate text-[15px] ${todo.completed ? 'line-through text-neutral-500' : 'text-neutral-200 font-medium'}`}>
-                              {todo.text}
-                            </span>
+                            {/* 可直接修改的标题 Input */}
+                            <input
+                              type="text"
+                              value={todo.text}
+                              onChange={(e) => updateTodoText(todo.id, e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              className={`w-full bg-transparent border-none p-0 m-0 focus:outline-none focus:ring-0 text-[13px] ${todo.completed ? 'line-through text-neutral-500' : 'text-neutral-200 font-medium'}`}
+                            />
                           </div>
                           
                           {!isExpanded && todo.description && !todo.completed && (
                             <div className="flex items-center gap-1 mt-1 text-neutral-500">
-                              <AlignLeft size={12} />
-                              <span className="text-[12px] truncate max-w-[200px]">{todo.description}</span>
+                              <AlignLeft size={10} />
+                              <span className="text-[11px] truncate max-w-[200px]">{todo.description}</span>
                             </div>
                           )}
                         </div>
 
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           {!todo.completed && (
                             <button onClick={() => focusOnTask(todo.id)} className={`p-1.5 rounded-md transition-colors ${isActive ? 'bg-indigo-500/20 text-indigo-400' : 'text-neutral-500 hover:text-indigo-400 hover:bg-white/5'}`} title="开始专注">
-                              <Play size={16} />
+                              <Play size={14} />
                             </button>
                           )}
                           <button onClick={() => setExpandedTodoId(isExpanded ? null : todo.id)} className="p-1.5 text-neutral-500 hover:text-white hover:bg-white/5 rounded-md transition-colors">
-                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                           </button>
                         </div>
                       </div>
 
                       {isExpanded && !todo.completed && (
-                        <div className="px-10 pb-4 pt-1">
+                        <div className="px-9 pb-3 pt-0">
                           <textarea
                             value={todo.description || ''}
                             onChange={(e) => updateTodoDesc(todo.id, e.target.value)}
                             placeholder="添加备注详情..."
-                            className="w-full bg-black/20 border border-white/5 rounded-lg p-2.5 text-[13px] text-neutral-300 placeholder-neutral-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 resize-none min-h-[80px] custom-scrollbar-note mb-3"
+                            className="w-full bg-black/20 border border-white/5 rounded-lg p-2 text-[11px] text-neutral-300 placeholder-neutral-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 resize-none min-h-[70px] custom-scrollbar-note mb-2"
                           />
                           
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <span className="text-[11px] font-medium text-neutral-500">优先级:</span>
+                              <span className="text-[10px] font-medium text-neutral-500">优先级:</span>
                               <div className="flex gap-1 bg-black/20 rounded-md p-1 border border-white/5">
                                 {PRIORITIES.map(p => (
                                   <button
                                     key={p.id}
                                     onClick={() => updateTodoPriority(todo.id, p.id)}
-                                    className={`px-2 py-0.5 rounded text-[11px] transition-colors ${todo.priority === p.id || (!todo.priority && p.id==='none') ? 'bg-white/10 text-white' : 'text-neutral-500 hover:text-neutral-300'}`}
+                                    className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${todo.priority === p.id || (!todo.priority && p.id==='none') ? 'bg-white/10 text-white' : 'text-neutral-500 hover:text-neutral-300'}`}
                                   >
                                     {p.label}
                                   </button>
@@ -522,9 +532,9 @@
                               </div>
                             </div>
                             
-                            <div className="flex items-center gap-2">
-                              <span className={`text-[11px] px-2 py-0.5 rounded-md border ${tag.color}`}>{tag.label}</span>
-                              <button onClick={() => deleteTodo(todo.id)} className="p-1 text-neutral-500 hover:text-red-400 transition-colors ml-2" title="删除任务">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[10px] px-2 py-0.5 rounded border ${tag.color}`}>{tag.label}</span>
+                              <button onClick={() => deleteTodo(todo.id)} className="p-1 text-neutral-500 hover:text-red-400 transition-colors ml-1" title="删除任务">
                                 <Trash2 size={14} />
                               </button>
                             </div>
@@ -537,15 +547,16 @@
               )}
             </div>
 
-            <div className="p-4 bg-[#161618] border-t border-white/5 shrink-0 z-10 mb-16 md:mb-0">
-              <form onSubmit={handleAddTask} className="flex flex-col gap-3 relative">
+            {/* 新建任务输入框：在 Timer tab 下隐藏（移动端） */}
+            <div className={`p-4 bg-[#161618] border-t border-white/5 shrink-0 z-10 mb-[60px] md:mb-0 ${mobileTab === 'timer' ? 'hidden md:block' : 'block'}`}>
+              <form onSubmit={handleAddTask} className="flex flex-col gap-2.5 relative">
                 <div className="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1">
                   {TAGS.map(tag => (
                     <button
                       key={tag.id}
                       type="button"
                       onClick={() => setSelectedTag(tag.id)}
-                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-all whitespace-nowrap ${
+                      className={`text-[10px] px-2.5 py-1 rounded-full border transition-all whitespace-nowrap ${
                         selectedTag === tag.id ? `${tag.color} border-transparent` : 'border-white/10 text-neutral-400 hover:bg-white/5'
                       }`}
                     >
@@ -553,15 +564,23 @@
                     </button>
                   ))}
                 </div>
-                <div className="relative flex items-center bg-[#222225] border border-white/10 rounded-xl focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all shadow-inner">
-                  <Plus size={18} className="absolute left-3 text-neutral-500 pointer-events-none" />
+                <div className="relative flex items-center bg-[#222225] border border-white/10 rounded-xl focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all shadow-inner overflow-hidden">
+                  <Plus size={16} className="absolute left-3 text-neutral-500 pointer-events-none" />
                   <input
                     type="text"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     placeholder="新建任务..."
-                    className="w-full bg-transparent py-3 pl-10 pr-4 text-[14px] text-neutral-200 placeholder-neutral-500 focus:outline-none"
+                    className="w-full bg-transparent py-2.5 pl-9 pr-16 text-[13px] text-neutral-200 placeholder-neutral-500 focus:outline-none"
                   />
+                  {/* 新增了明显的"添加"按钮，方便点击操作 */}
+                  <button 
+                    type="submit" 
+                    disabled={!inputValue.trim()}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 disabled:bg-white/5 disabled:text-neutral-500 disabled:cursor-not-allowed text-white text-[11px] font-medium rounded-lg transition-colors shadow-sm"
+                  >
+                    添加
+                  </button>
                 </div>
               </form>
             </div>
@@ -575,6 +594,7 @@
              <div className="w-0.5 h-12 bg-white/20 rounded-full pointer-events-none"></div>
           </div>
 
+          {/* 右侧备忘录主体 */}
           <div className={`flex-1 flex-col h-screen overflow-hidden bg-[#0e0e0e] relative ${mobileTab === 'notes' ? 'flex' : 'hidden md:flex'}`}>
             
             <div className="absolute inset-0 opacity-10 pointer-events-none z-0 mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
@@ -582,31 +602,31 @@
             {focusedNote ? (
               <div className="flex-1 flex flex-col z-10 p-8 pt-10 relative h-full">
                 <div className="max-w-4xl w-full mx-auto flex flex-col h-full">
-                  <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center justify-between mb-5">
                     <button 
                       onClick={() => setFocusedNoteId(null)}
-                      className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors font-medium text-sm backdrop-blur-md active:scale-95"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors font-medium text-[13px] backdrop-blur-md active:scale-95"
                     >
-                      <ArrowLeft size={16} /> 返回列表
+                      <ArrowLeft size={14} /> 返回列表
                     </button>
-                    <div className="flex items-center gap-3 bg-black/20 rounded-full py-1.5 px-3 border border-white/5 backdrop-blur-md">
+                    <div className="flex items-center gap-2 bg-black/20 rounded-full py-1 px-2.5 border border-white/5 backdrop-blur-md">
                       {NOTE_COLORS.map(c => (
                         <button
                           key={c.id}
                           onClick={() => changeNoteColor(focusedNote.id, c.id)}
-                          className={`w-5 h-5 rounded-full border transition-transform ${c.id === focusedNote.colorId ? 'scale-110 border-white shadow-sm' : 'border-white/20 hover:scale-110'} ${c.class.split(' ')[0]}`}
+                          className={`w-4 h-4 rounded-full border transition-transform ${c.id === focusedNote.colorId ? 'scale-110 border-white shadow-sm' : 'border-white/20 hover:scale-110'} ${c.class.split(' ')[0]}`}
                           title="更换颜色"
                         />
                       ))}
-                      <div className="w-px h-4 bg-white/20 mx-1"></div>
+                      <div className="w-px h-3 bg-white/20 mx-1"></div>
                       <button onClick={() => toggleNoteMode(focusedNote.id)} className={`p-1.5 rounded-full transition-colors ${!focusedNote.isEditing ? 'bg-white/20 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white'}`} title={focusedNote.isEditing ? "完成编辑" : "编辑"}>
-                        {focusedNote.isEditing ? <Eye size={18} /> : <Edit2 size={18} />}
+                        {focusedNote.isEditing ? <Eye size={16} /> : <Edit2 size={16} />}
                       </button>
                     </div>
                   </div>
                   
-                  <div className={`flex-1 flex flex-col rounded-3xl border p-10 shadow-2xl ${NOTE_COLORS.find(c => c.id === focusedNote.colorId)?.class} overflow-hidden transition-colors duration-500`}>
-                    <div className="flex-1 overflow-y-auto custom-scrollbar-note pr-4 text-lg">
+                  <div className={`flex-1 flex flex-col rounded-3xl border p-8 shadow-2xl ${NOTE_COLORS.find(c => c.id === focusedNote.colorId)?.class} overflow-hidden transition-colors duration-500`}>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar-note pr-4 text-[14px]">
                       {focusedNote.isEditing ? (
                         <textarea
                           value={focusedNote.text}
@@ -616,12 +636,12 @@
                           autoFocus
                         />
                       ) : (
-                        <div className="leading-relaxed font-medium break-words pb-10">
+                        <div className="leading-relaxed font-medium break-words pb-10 text-[14px]">
                           {renderMarkdown(focusedNote)}
                         </div>
                       )}
                     </div>
-                    <div className="mt-4 pt-4 border-t border-black/10 text-sm font-semibold text-black/40 flex justify-between">
+                    <div className="mt-3 pt-3 border-t border-black/10 text-xs font-semibold text-black/40 flex justify-between">
                       <span>长文本专注模式</span>
                       <span>{formatDate(focusedNote.createdAt)}</span>
                     </div>
@@ -632,97 +652,102 @@
               <>
                 <div className="p-6 pb-4 flex items-center justify-between shrink-0 relative z-10">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-2xl font-bold tracking-tight text-white/90">备忘录</h2>
-                    <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-white/60 text-xs font-semibold">{notes.length}</span>
+                    <h2 className="text-xl font-bold tracking-tight text-white/90">备忘录</h2>
+                    <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/60 text-[10px] font-semibold">{notes.length}</span>
                   </div>
                   <button 
                     onClick={handleAddNote}
-                    className="w-9 h-9 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white rounded-full transition-all active:scale-90"
+                    className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white rounded-full transition-all active:scale-90"
                     title="新建备忘录"
                   >
-                    <Edit2 size={16} />
+                    <Edit2 size={14} />
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 pt-2 custom-scrollbar relative z-10 pb-24 md:pb-6">
+                <div className="flex-1 overflow-y-auto p-6 pt-2 custom-scrollbar relative z-10 pb-[70px] md:pb-6">
                   {notes.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-neutral-600">
-                      <Edit2 size={48} strokeWidth={1} className="mb-4 opacity-20" />
-                      <p className="text-lg font-medium text-neutral-400">无备忘录</p>
+                      <Edit2 size={40} strokeWidth={1} className="mb-3 opacity-20" />
+                      <p className="text-[14px] font-medium text-neutral-400">无备忘录</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5 auto-rows-max items-start">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-max items-start">
                       {sortedNotes.map(note => {
                         const colorTheme = NOTE_COLORS.find(c => c.id === note.colorId) || NOTE_COLORS[4];
                         return (
                           <div 
                             key={note.id} 
-                            draggable
+                            draggable={draggableNoteId === note.id}
                             onDragStart={(e) => handleDragStart(e, note.id)}
                             onDragEnd={handleDragEnd}
                             onDragOver={handleDragOver}
                             onDrop={(e) => handleDrop(e, note.id)}
-                            className={`group relative flex flex-col rounded-2xl border p-5 shadow-lg transition-all duration-300 hover:shadow-xl cursor-grab active:cursor-grabbing ${colorTheme.class} ${note.isPinned ? 'ring-2 ring-indigo-400/50' : ''}`}
+                            className={`group relative flex flex-col rounded-2xl border p-4 shadow-lg transition-all duration-300 hover:shadow-xl ${draggableNoteId === note.id ? 'cursor-grabbing' : ''} ${colorTheme.class} ${note.isPinned ? 'ring-2 ring-indigo-400/50' : ''}`}
                           >
-                            <div className="absolute top-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-30 transition-opacity pointer-events-none text-black/50">
-                              <GripHorizontal size={16} />
+                            {/* 只有顶部的抓手区域控制拖拽，解决了影响文字选择的问题 */}
+                            <div 
+                              onMouseEnter={() => setDraggableNoteId(note.id)}
+                              onMouseLeave={() => setDraggableNoteId(null)}
+                              className="absolute top-0 left-0 right-0 h-8 flex items-start justify-center pt-1.5 cursor-grab active:cursor-grabbing z-20 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-2xl hover:bg-black/5"
+                            >
+                              <GripHorizontal size={14} className="text-black/30" />
                             </div>
 
                             {note.isPinned && (
-                              <div className="absolute -top-2 -left-2 w-7 h-7 bg-indigo-500 rounded-full flex items-center justify-center shadow-md border-2 border-[#0e0e0e] z-10">
-                                <Pin size={12} className="text-white fill-white" />
+                              <div className="absolute -top-2 -left-2 w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center shadow-md border-2 border-[#0e0e0e] z-10">
+                                <Pin size={10} className="text-white fill-white" />
                               </div>
                             )}
 
-                            <div className="flex justify-between items-center mb-3 opacity-0 group-hover:opacity-100 transition-opacity z-10 pt-1">
-                              <div className="flex gap-1.5 bg-black/5 rounded-full p-1 border border-black/5">
+                            <div className="flex justify-between items-center mb-2.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 pt-3">
+                              <div className="flex gap-1 bg-black/5 rounded-full p-1 border border-black/5">
                                 {NOTE_COLORS.map(c => (
                                   <button
                                     key={c.id}
                                     onClick={(e) => { e.stopPropagation(); changeNoteColor(note.id, c.id); }}
-                                    className={`w-4 h-4 rounded-full border transition-transform ${c.id === note.colorId ? 'scale-110 border-black/30 shadow-sm' : 'border-black/10 hover:scale-110'} ${c.class.split(' ')[0]}`}
+                                    className={`w-3.5 h-3.5 rounded-full border transition-transform ${c.id === note.colorId ? 'scale-110 border-black/30 shadow-sm' : 'border-black/10 hover:scale-110'} ${c.class.split(' ')[0]}`}
                                   />
                                 ))}
                               </div>
                               
-                              <div className="flex items-center gap-1 bg-black/5 rounded-full p-0.5 border border-black/5">
+                              <div className="flex items-center gap-0.5 bg-black/5 rounded-full p-0.5 border border-black/5">
                                 <button onClick={(e) => { e.stopPropagation(); toggleNotePin(note.id); }} className={`p-1.5 rounded-full transition-colors ${note.isPinned ? 'text-indigo-600 bg-white/50' : 'text-black/50 hover:bg-black/10 hover:text-black'}`} title={note.isPinned ? "取消置顶" : "置顶"}>
-                                  {note.isPinned ? <PinOff size={14} /> : <Pin size={14} />}
+                                  {note.isPinned ? <PinOff size={12} /> : <Pin size={12} />}
                                 </button>
                                 <button onClick={(e) => { e.stopPropagation(); toggleNoteMode(note.id); }} className={`p-1.5 rounded-full transition-colors ${!note.isEditing ? 'bg-white/50 text-black/80' : 'text-black/50 hover:bg-black/10 hover:text-black'}`} title={note.isEditing ? "完成编辑" : "快捷编辑"}>
-                                  {note.isEditing ? <Eye size={14} /> : <Edit2 size={14} />}
+                                  {note.isEditing ? <Eye size={12} /> : <Edit2 size={12} />}
                                 </button>
                                 <button onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }} className="p-1.5 rounded-full text-black/50 hover:bg-red-500/10 hover:text-red-600 transition-colors" title="删除">
-                                  <Trash2 size={14} />
+                                  <Trash2 size={12} />
                                 </button>
                               </div>
                             </div>
 
-                            <div className="flex-1 relative mt-1">
-                              <div className="max-h-[180px] overflow-y-auto custom-scrollbar-note pr-2 pb-2">
+                            <div className="flex-1 relative mt-0.5">
+                              <div className="max-h-[160px] overflow-y-auto custom-scrollbar-note pr-2 pb-2">
                                 {note.isEditing ? (
                                   <textarea
                                     value={note.text}
                                     onChange={(e) => updateNoteText(note.id, e.target.value)}
                                     placeholder="输入内容..."
-                                    className="w-full min-h-[160px] bg-transparent resize-none focus:outline-none placeholder-black/30 font-medium text-[15px] leading-relaxed custom-scrollbar-note cursor-text"
+                                    className="w-full min-h-[140px] bg-transparent resize-none focus:outline-none placeholder-black/30 font-medium text-[13px] leading-relaxed custom-scrollbar-note cursor-text"
                                     onClick={(e) => e.stopPropagation()}
                                   />
                                 ) : (
-                                  <div className="text-[15px] leading-relaxed font-medium break-words cursor-text" onClick={(e) => e.stopPropagation()}>
+                                  <div className="text-[13px] leading-relaxed font-medium break-words cursor-text" onClick={(e) => e.stopPropagation()}>
                                     {renderMarkdown(note)}
                                   </div>
                                 )}
                               </div>
                             </div>
                             
-                            <div className="mt-4 pt-3 border-t border-black/5 flex justify-between items-center text-[11px] font-semibold text-black/40">
+                            <div className="mt-3 pt-2.5 border-t border-black/5 flex justify-between items-center text-[10px] font-semibold text-black/40 z-10 relative pointer-events-none">
                               <span>{formatDate(note.createdAt)}</span>
                               <button 
                                 onClick={(e) => { e.stopPropagation(); setFocusedNoteId(note.id); }}
-                                className="flex items-center gap-1 text-black/70 hover:text-indigo-600 transition-colors bg-white/40 hover:bg-white/70 shadow-sm px-2.5 py-1.5 rounded-lg active:scale-95 cursor-pointer z-10 font-bold"
+                                className="flex items-center gap-1 text-black/70 hover:text-indigo-600 transition-colors bg-white/40 hover:bg-white/70 shadow-sm px-2 py-1 rounded-md active:scale-95 cursor-pointer pointer-events-auto font-bold"
                               >
-                                <Maximize2 size={12} strokeWidth={2.5} /> 展开
+                                <Maximize2 size={10} strokeWidth={2.5} /> 展开
                               </button>
                             </div>
                           </div>
@@ -735,20 +760,28 @@
             )}
           </div>
 
-          <div className="md:hidden flex items-center bg-[#161618]/95 backdrop-blur-xl border-t border-white/5 fixed bottom-0 left-0 right-0 z-50 h-16 shadow-[0_-10px_30px_rgba(0,0,0,0.8)]">
+          {/* 移动端三分式底部导航栏 */}
+          <div className="md:hidden flex items-center bg-[#161618]/95 backdrop-blur-xl border-t border-white/5 fixed bottom-0 left-0 right-0 z-50 h-[60px] shadow-[0_-10px_30px_rgba(0,0,0,0.8)] px-2">
             <button 
               onClick={() => setMobileTab('todo')} 
-              className={`flex-1 flex flex-col items-center justify-center gap-1.5 transition-all ${mobileTab === 'todo' ? 'text-indigo-400 scale-105' : 'text-neutral-500 hover:text-neutral-300'}`}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${mobileTab === 'todo' ? 'text-indigo-400 scale-105' : 'text-neutral-500 hover:text-neutral-300'}`}
             >
-              <CheckCircle2 size={20} />
-              <span className="text-[11px] font-semibold tracking-wider">待办任务</span>
+              <CheckCircle2 size={18} />
+              <span className="text-[10px] font-semibold tracking-wider">待办</span>
+            </button>
+            <button 
+              onClick={() => setMobileTab('timer')} 
+              className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${mobileTab === 'timer' ? 'text-indigo-400 scale-105' : 'text-neutral-500 hover:text-neutral-300'}`}
+            >
+              <Clock size={18} />
+              <span className="text-[10px] font-semibold tracking-wider">番茄</span>
             </button>
             <button 
               onClick={() => setMobileTab('notes')} 
-              className={`flex-1 flex flex-col items-center justify-center gap-1.5 transition-all ${mobileTab === 'notes' ? 'text-indigo-400 scale-105' : 'text-neutral-500 hover:text-neutral-300'}`}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 transition-all ${mobileTab === 'notes' ? 'text-indigo-400 scale-105' : 'text-neutral-500 hover:text-neutral-300'}`}
             >
-              <StickyNote size={20} />
-              <span className="text-[11px] font-semibold tracking-wider">备忘录</span>
+              <StickyNote size={18} />
+              <span className="text-[10px] font-semibold tracking-wider">备忘录</span>
             </button>
           </div>
 
